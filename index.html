@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Freight Calculator - GeoSun Ltd.</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet Routing Machine CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <style>
+        body, html { height: 100%; margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; }
+        #map { height: 100vh; width: 100%; z-index: 1; }
+        
+        .leaflet-routing-container { display: none; }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        .autocomplete-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            z-index: 2000;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 0.25rem;
+        }
+
+        .number-icon {
+            background: #2563eb;
+            color: white;
+            border-radius: 50%;
+            width: 24px !important;
+            height: 24px !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .border-icon-marker {
+            background: #ef4444;
+            color: white;
+            border-radius: 4px;
+            width: 28px !important;
+            height: 28px !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+            transform: rotate(45deg);
+        }
+        .border-icon-marker span { transform: rotate(-45deg); }
+
+        .segment-connector {
+            position: relative;
+            margin-left: 54px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            z-index: 5;
+        }
+        .segment-connector::before {
+            content: '';
+            position: absolute;
+            left: -21px;
+            top: -12px;
+            bottom: -12px;
+            width: 2px;
+            background: #cbd5e1;
+        }
+        .distance-pill {
+            background: #ffffff;
+            border: 2px solid #3b82f6;
+            border-radius: 99px;
+            padding: 2px 12px;
+            font-size: 11px;
+            font-weight: 900;
+            color: #1e40af;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2);
+            animation: fadeIn 0.3s ease-out;
+            white-space: nowrap;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .border-line-box {
+            position: relative;
+            padding-left: 2.75rem;
+            margin: 0.75rem 0;
+        }
+        .border-line-box::before {
+            content: '';
+            position: absolute;
+            left: 1.25rem;
+            top: -1rem;
+            bottom: -1rem;
+            width: 2px;
+            border-left: 2px dashed #ef4444;
+            opacity: 0.3;
+        }
+
+        .input-error {
+            border-color: #ef4444 !important;
+            background-color: #fef2f2 !important;
+        }
+
+        @media (max-width: 768px) {
+            #sidebar {
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                height: 55%;
+                z-index: 1000;
+                border-radius: 20px 20px 0 0;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 relative">
+
+    <div id="sidebar" class="fixed left-0 top-0 h-full w-full md:w-96 bg-white shadow-2xl z-[1000] flex flex-col transition-all duration-300">
+        <!-- Заголовок -->
+        <div class="p-6 border-b border-slate-100 space-y-4 shrink-0">
+            <div class="flex justify-between items-center">
+                <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <span id="txt-title">GeoSun Ltd.</span>
+                </h1>
+                <div class="flex bg-slate-100 p-1 rounded-lg text-[10px] font-bold uppercase">
+                    <button onclick="setLanguage('uk')" id="lang-uk" class="px-2 py-1 rounded transition-all">UK</button>
+                    <button onclick="setLanguage('ru')" id="lang-ru" class="px-2 py-1 rounded transition-all">RU</button>
+                    <button onclick="setLanguage('en')" id="lang-en" class="px-2 py-1 rounded transition-all">EN</button>
+                </div>
+            </div>
+            <div class="flex justify-between items-center">
+                <p class="text-xs text-slate-400 font-medium" id="txt-subtitle">Планування фрахту</p>
+                <button onclick="clearAllPoints()" class="text-xs text-red-500 hover:text-red-700 font-medium" id="btn-clear">Очистити все</button>
+            </div>
+        </div>
+
+        <!-- Пошук -->
+        <div class="p-4 flex-1 flex flex-col min-h-0">
+            <div class="flex gap-2 mb-4 relative">
+                <div class="relative flex-1">
+                    <input id="searchInput" type="text" autocomplete="off" placeholder="Додати точку..." 
+                        class="w-full p-3 bg-slate-100 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500 transition-all outline-none">
+                    <div id="searchResults" class="autocomplete-results hidden custom-scrollbar"></div>
+                </div>
+                <button id="btnLocation" onclick="addCurrentLocation()" class="flex-none w-12 h-12 bg-slate-100 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded-xl flex items-center justify-center transition-colors" title="Моє місцезнаходження">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M2 12h2"/><path d="M20 12h2"/></svg>
+                </button>
+            </div>
+
+            <div id="pointsContainer" class="space-y-0 overflow-y-auto custom-scrollbar pr-2 pb-6"></div>
+        </div>
+
+        <!-- Оформлення фрахту -->
+        <div id="routeInfo" class="hidden p-6 border-t border-slate-100 flex-none bg-slate-50">
+            <div class="space-y-4">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest" id="txt-total-dist-label">Загальна відстань</p>
+                        <p class="text-4xl font-black text-slate-800 tracking-tight" id="totalDistance">0 км</p>
+                    </div>
+                    <div class="text-right pt-1">
+                        <span id="routePointsCount" class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">0 точок</span>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label for="contactInput" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider" id="lbl-contact">Контакти для зв'язку</label>
+                    <input type="text" id="contactInput" placeholder="+380... / email@..." 
+                        class="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                </div>
+
+                <button onclick="sendToGoogleSheets()" id="btn-submit" class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white p-4 rounded-2xl font-bold text-sm shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 group">
+                    <span id="txt-submit-btn">Отримати розрахунок фрахту</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="group-hover:translate-x-1 transition-transform"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+            </div>
+        </div>
+        
+        <div id="emptyState" class="p-10 text-center flex-1 flex flex-col justify-center items-center opacity-40">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-4 text-blue-500"><path d="m9 18 6-6-6-6"/></svg>
+            <p class="text-sm" id="txt-empty">Оберіть точки на карті для розрахунку</p>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-4 py-3 rounded-xl shadow-lg text-sm z-[2000] transition-opacity duration-300 opacity-0 pointer-events-none font-medium flex items-center gap-2 text-center">
+        <span id="toastMessage">Повідомлення</span>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
+    <script>
+        const WEB_APP_URL = ""; 
+
+        let map, routingControl;
+        let waypointMarkers = [];
+        let segmentDistances = [];
+        let debounceTimer;
+        let currentLang = 'uk';
+        let isCalculating = false;
+        let currentTotalDist = 0;
+
+        const checkpointsData = {
+            'pl': [ { name: { uk: "Ягодин", ru: "Ягодин", en: "Yahodyn" }, lat: 51.1656, lng: 23.8569 }, { name: { uk: "Краківець", ru: "Краковец", en: "Krakovets" }, lat: 49.9535, lng: 23.1118 }, { name: { uk: "Шегині", ru: "Шегини", en: "Shehyni" }, lat: 49.7997, lng: 22.9567 }, { name: { uk: "Рава-Руська", ru: "Рава-Русская", en: "Rava-Ruska" }, lat: 50.2375, lng: 23.6190 } ],
+            'sk': [ { name: { uk: "Ужгород", ru: "Ужгород", en: "Uzhhorod" }, lat: 48.6120, lng: 22.2570 }, { name: { uk: "Малий Березний", ru: "Малый Березный", en: "Malyi Bereznyi" }, lat: 48.8822, lng: 22.4415 } ],
+            'hu': [ { name: { uk: "Чоп (Тиса)", ru: "Чоп (Тиса)", en: "Chop (Tysa)" }, lat: 48.4286, lng: 22.1764 }, { name: { uk: "Лужанка", ru: "Лужанка", en: "Luzhanka" }, lat: 48.1678, lng: 22.5855 } ],
+            'ro': [ { name: { uk: "Порубне", ru: "Порубное", en: "Porubne" }, lat: 47.9850, lng: 26.0592 }, { name: { uk: "Дякове", ru: "Дьяково", en: "Diakove" }, lat: 48.0165, lng: 23.0130 } ],
+            'md': [ { name: { uk: "Паланка", ru: "Паланка", en: "Palanka" }, lat: 46.4117, lng: 30.1583 }, { name: { uk: "Могилів-Подільський", ru: "Могилев-Подольский", en: "Mohyliv-Podilskyi" }, lat: 48.4418, lng: 27.7852 } ]
+        };
+
+        const translations = {
+            uk: { title: "ТОВ Геосан", subtitle: "Планування фрахту", clear: "Очистити", searchPlaceholder: "Пошук міста...", empty: "Оберіть точки на карті", start: "Завантаження", finish: "Вивантаження", stop: "Зупинка", border: "Кордон", km: "км", borderFound: "Кордон України", findBorder: "Обрати КПП", selectCountry: "Оберіть країну транзиту", back: "Назад", searching: "Розрахунок...", totalDistLabel: "Маршрут", pts: "точок", contactLbl: "Телефон або Email", submitBtn: "Отримати розрахунок фрахту", success: "Надіслано!", fillFields: "Вкажіть контакти", invalidFormat: "Невірний формат", countries: { pl: "Польща", sk: "Словаччина", hu: "Угорщина", ro: "Румунія", md: "Молдова" } },
+            ru: { title: "ООО Геосан", subtitle: "Планирование фрахта", clear: "Очистить", searchPlaceholder: "Поиск города...", empty: "Выберите точки на карте", start: "Загрузка", finish: "Выгрузка", stop: "Остановка", border: "Граница", km: "км", borderFound: "Граница Украины", findBorder: "Выбрать КПП", selectCountry: "Выберите страну транзита", back: "Назад", searching: "Расчет...", totalDistLabel: "Маршрут", pts: "точек", contactLbl: "Телефон или Email", submitBtn: "Получить расчет фрахта", success: "Отправлено!", fillFields: "Укажите контакты", invalidFormat: "Неверный формат", countries: { pl: "Польша", sk: "Словакия", hu: "Венгрия", ro: "Румыния", md: "Молдова" } },
+            en: { title: "GeoSun Ltd.", subtitle: "Freight Planning", clear: "Clear", searchPlaceholder: "Search city...", empty: "Select points on map", start: "Loading", finish: "Unloading", stop: "Stop", border: "Border", km: "km", borderFound: "UA Border", findBorder: "Select checkpoint", selectCountry: "Select transit country", back: "Back", searching: "Calculating...", totalDistLabel: "Route", pts: "points", contactLbl: "Phone or Email", submitBtn: "Get freight estimate", success: "Sent!", fillFields: "Provide contacts", invalidFormat: "Invalid format", countries: { pl: "Poland", sk: "Slovakia", hu: "Hungary", ro: "Romania", md: "Moldova" } }
+        };
+
+        window.onload = () => {
+            map = L.map('map', { zoomControl: false }).setView([50.4501, 30.5234], 10);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '&copy; GeoSun' }).addTo(map);
+            L.control.zoom({ position: 'topright' }).addTo(map);
+
+            map.on('click', (e) => addWaypoint(e.latlng));
+            setupSearch('searchInput', 'searchResults');
+            map.locate({ setView: true, maxZoom: 13 });
+            setLanguage('uk');
+        };
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            ['uk', 'ru', 'en'].forEach(l => {
+                const btn = document.getElementById(`lang-${l}`);
+                if(btn) btn.className = `px-2 py-1 rounded transition-all ${l === lang ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400'}`;
+            });
+            updateUILanguage();
+            updateUI();
+            if (routingControl) calculateRoute();
+        }
+
+        function updateUILanguage() {
+            const t = translations[currentLang];
+            const elements = {
+                'txt-title': t.title,
+                'txt-subtitle': t.subtitle,
+                'btn-clear': t.clear,
+                'txt-empty': t.empty,
+                'txt-total-dist-label': t.totalDistLabel,
+                'lbl-contact': t.contactLbl,
+                'txt-submit-btn': t.submitBtn
+            };
+            for (let id in elements) {
+                if(document.getElementById(id)) document.getElementById(id).innerText = elements[id];
+            }
+            if(document.getElementById('searchInput')) document.getElementById('searchInput').placeholder = t.searchPlaceholder;
+        }
+
+        function setupSearch(inputId, resultsId) {
+            const input = document.getElementById(inputId);
+            const results = document.getElementById(resultsId);
+            if (!input || !results) return;
+
+            input.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                const query = input.value.trim();
+                if (query.length < 3) { results.classList.add('hidden'); return; }
+                
+                debounceTimer = setTimeout(async () => {
+                    try {
+                        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&accept-language=${currentLang}&addressdetails=1`);
+                        const data = await res.json();
+                        showSearchResults(data, results, input);
+                    } catch (err) {}
+                }, 500);
+            });
+        }
+
+        function showSearchResults(data, container, input) {
+            container.innerHTML = '';
+            if (!data || data.length === 0) { container.classList.add('hidden'); return; }
+            data.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "p-3 hover:bg-slate-50 cursor-pointer text-sm border-b border-slate-50";
+                div.innerText = item.display_name;
+                div.onclick = () => {
+                    input.value = '';
+                    container.classList.add('hidden');
+                    addWaypoint(L.latLng(item.lat, item.lon), item.display_name, item.address ? item.address.country_code : null);
+                };
+                container.appendChild(div);
+            });
+            container.classList.remove('hidden');
+        }
+
+        async function addWaypoint(latlng, knownAddress = null, country = null, atIndex = null, isBorder = false) {
+            isCalculating = true;
+            const res = knownAddress ? { display_name: knownAddress, address: { country_code: country } } : await getAddressFull(latlng);
+            
+            const marker = L.marker(latlng, { draggable: true }).addTo(map);
+            const waypointObj = { 
+                marker, 
+                address: res.display_name, 
+                country: res.address?.country_code?.toLowerCase() || null, 
+                isBorder 
+            };
+
+            if (atIndex !== null) waypointMarkers.splice(atIndex, 0, waypointObj);
+            else waypointMarkers.push(waypointObj);
+
+            marker.on('dragend', async () => {
+                isCalculating = true;
+                const updatedRes = await getAddressFull(marker.getLatLng());
+                waypointObj.address = updatedRes.display_name;
+                waypointObj.country = updatedRes.address?.country_code?.toLowerCase() || null;
+                calculateRoute();
+            });
+
+            refreshMarkerIcons();
+            updateUI();
+            calculateRoute();
+        }
+
+        async function getAddressFull(latlng) {
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latlng.lat}&lon=${latlng.lng}&accept-language=${currentLang}&addressdetails=1`);
+                return await res.json();
+            } catch (err) { return { display_name: `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}` }; }
+        }
+
+        function removeWaypoint(index) {
+            if (waypointMarkers[index].marker) map.removeLayer(waypointMarkers[index].marker);
+            waypointMarkers.splice(index, 1);
+            segmentDistances = [];
+            calculateRoute();
+        }
+
+        function refreshMarkerIcons() {
+            waypointMarkers.forEach((obj, i) => {
+                obj.marker.setIcon(L.divIcon({ 
+                    className: obj.isBorder ? 'border-icon-marker' : 'number-icon', 
+                    html: obj.isBorder ? '<span>🚧</span>' : `<span>${i + 1}</span>`, 
+                    iconSize: [28, 28] 
+                }));
+            });
+        }
+
+        function clearAllPoints() {
+            waypointMarkers.forEach(obj => { if(obj.marker) map.removeLayer(obj.marker); });
+            waypointMarkers = [];
+            segmentDistances = [];
+            if (routingControl) { try { map.removeControl(routingControl); } catch(e){} routingControl = null; }
+            updateUI();
+        }
+
+        function updateUI() {
+            const container = document.getElementById('pointsContainer');
+            if(!container) return;
+            container.innerHTML = '';
+            const t = translations[currentLang];
+            
+            const emptyEl = document.getElementById('emptyState');
+            const infoEl = document.getElementById('routeInfo');
+
+            if (waypointMarkers.length === 0) {
+                if(emptyEl) emptyEl.classList.remove('hidden');
+                if(infoEl) infoEl.classList.add('hidden');
+                return;
+            }
+            if(emptyEl) emptyEl.classList.add('hidden');
+
+            waypointMarkers.forEach((obj, i) => {
+                const label = i === 0 ? t.start : (i === waypointMarkers.length - 1 ? t.finish : (obj.isBorder ? t.border : t.stop));
+                const pointDiv = document.createElement('div');
+                pointDiv.className = `flex items-center gap-3 p-3 rounded-xl group relative z-10 shadow-sm border ${obj.isBorder ? 'bg-red-50 border-red-100' : 'bg-white border-slate-100'}`;
+                
+                const latLng = obj.marker.getLatLng();
+                pointDiv.innerHTML = `
+                    <div class="flex-none w-6 h-6 ${obj.isBorder ? 'bg-red-500' : 'bg-blue-600'} text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-md">${obj.isBorder ? "🚧" : (i+1)}</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[9px] uppercase font-bold ${obj.isBorder ? 'text-red-600' : 'text-slate-400'}">${label}</p>
+                        <p class="text-[13px] text-slate-700 font-medium break-words leading-tight">${obj.address || ''}</p>
+                        <p class="text-[9px] text-slate-400 font-mono mt-0.5">${latLng.lat.toFixed(5)}, ${latLng.lng.toFixed(5)}</p>
+                    </div>
+                    <button onclick="removeWaypoint(${i})" class="p-2 text-slate-300 hover:text-red-500"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
+                `;
+                container.appendChild(pointDiv);
+
+                if (i < waypointMarkers.length - 1) {
+                    const dist = segmentDistances[i];
+                    const connector = document.createElement('div');
+                    connector.className = "segment-connector";
+                    connector.innerHTML = dist ? `<div class="distance-pill"><span>${(dist/1000).toFixed(1)} ${t.km}</span></div>` : (isCalculating ? `<div class="distance-pill opacity-50"><span class="animate-pulse">...</span></div>` : '');
+                    container.appendChild(connector);
+
+                    const c1 = obj.country;
+                    const c2 = waypointMarkers[i+1].country;
+                    if (c1 && c2 && c1 !== c2 && !obj.isBorder && !waypointMarkers[i+1].isBorder) {
+                        const hasUA = c1 === 'ua' || c2 === 'ua';
+                        if (hasUA) {
+                            const target = c1 === 'ua' ? c2 : c1;
+                            const isNeighbor = !!checkpointsData[target];
+                            
+                            const borderUI = document.createElement('div');
+                            borderUI.className = "border-line-box";
+                            borderUI.innerHTML = `
+                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-2 relative shadow-sm">
+                                    <button onclick="toggleBorderDropdown(${i}, '${target}', ${isNeighbor})" class="w-full flex items-center justify-between text-left">
+                                        <span class="text-[10px] font-bold text-blue-800 uppercase">${t.borderFound}</span>
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                                    </button>
+                                    <div id="dropdown-border-${i}" class="hidden mt-2 bg-white rounded-lg border border-blue-100 overflow-hidden flex flex-col max-h-40 overflow-y-auto"></div>
+                                </div>
+                            `;
+                            container.appendChild(borderUI);
+                        }
+                    }
+                }
+            });
+        }
+
+        function toggleBorderDropdown(idx, country, isNeighbor) {
+            const list = document.getElementById(`dropdown-border-${idx}`);
+            if(!list) return;
+            list.classList.toggle('hidden');
+            if(list.innerHTML === '') {
+                if(isNeighbor) {
+                    checkpointsData[country].forEach(p => {
+                        const btn = document.createElement('button');
+                        btn.className = "w-full text-left p-2 hover:bg-blue-50 text-[11px] border-b border-blue-50";
+                        btn.innerText = p.name[currentLang] || p.name['en'];
+                        btn.onclick = () => addWaypoint(L.latLng(p.lat, p.lng), p.name[currentLang], country, idx + 1, true);
+                        list.appendChild(btn);
+                    });
+                } else {
+                    const t = translations[currentLang];
+                    list.innerHTML = `<div class="p-2 text-[9px] font-bold text-slate-400 uppercase">${t.selectCountry}</div>`;
+                    Object.keys(checkpointsData).forEach(code => {
+                        const btn = document.createElement('button');
+                        btn.className = "w-full text-left p-2 hover:bg-blue-50 text-[11px] border-b border-blue-50";
+                        btn.innerText = t.countries[code] || code.toUpperCase();
+                        btn.onclick = () => { list.innerHTML = ''; toggleBorderDropdown(idx, code, true); };
+                        list.appendChild(btn);
+                    });
+                }
+            }
+        }
+
+        function calculateRoute() {
+            const infoEl = document.getElementById('routeInfo');
+            if (waypointMarkers.length < 2) {
+                if (routingControl) { try { map.removeControl(routingControl); } catch(e){} routingControl = null; }
+                if (infoEl) infoEl.classList.add('hidden');
+                updateUI(); return;
+            }
+            const wpts = waypointMarkers.map(obj => obj.marker.getLatLng());
+            if (!routingControl) {
+                routingControl = L.Routing.control({ 
+                    waypoints: wpts, 
+                    createMarker: () => null, 
+                    lineOptions: { styles: [{ color: '#2563eb', weight: 6, opacity: 0.8 }] }, 
+                    router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1', language: currentLang }), 
+                    fitSelectedRoutes: false, show: false 
+                }).addTo(map);
+                
+                routingControl.on('routesfound', (e) => {
+                    const r = e.routes[0];
+                    isCalculating = false;
+                    segmentDistances = [];
+                    if (r.waypointIndices) {
+                        for (let i = 0; i < r.waypointIndices.length - 1; i++) {
+                            let d = 0;
+                            for (let j = r.waypointIndices[i]; j < r.waypointIndices[i+1]; j++) { if(r.coordinates[j] && r.coordinates[j+1]) d += r.coordinates[j].distanceTo(r.coordinates[j+1]); }
+                            segmentDistances.push(d);
+                        }
+                    }
+                    currentTotalDist = segmentDistances.reduce((a, b) => a + b, 0);
+                    if(document.getElementById('totalDistance')) document.getElementById('totalDistance').innerText = (currentTotalDist / 1000).toFixed(1) + ` ${translations[currentLang].km}`;
+                    if(document.getElementById('routePointsCount')) document.getElementById('routePointsCount').innerText = `${waypointMarkers.length} ${translations[currentLang].pts}`;
+                    if(infoEl) infoEl.classList.remove('hidden');
+                    updateUI();
+                    map.fitBounds(L.latLngBounds(r.coordinates), { padding: [50, 50], paddingTopLeft: [window.innerWidth > 768 ? 400 : 50, 50], animate: true });
+                });
+            } else { routingControl.setWaypoints(wpts); }
+        }
+
+        async function sendToGoogleSheets() {
+            const input = document.getElementById('contactInput');
+            const contact = input ? input.value.trim() : '';
+            const t = translations[currentLang];
+            input.classList.remove('input-error');
+            if(!contact || (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact) && !/^\+?[\d\s\-()]{7,20}$/.test(contact))) {
+                input.classList.add('input-error'); showToast(t.invalidFormat); return;
+            }
+            const btn = document.getElementById('btn-submit');
+            btn.disabled = true;
+            const data = { 
+                timestamp: new Date().toLocaleString(), 
+                contact, 
+                distance: (currentTotalDist/1000).toFixed(1) + " km", 
+                route: waypointMarkers.map((m, i) => `${i+1}. ${m.address}`).join(' -> ') 
+            };
+            if(!WEB_APP_URL) { console.log(data); setTimeout(() => { showToast(t.success); btn.disabled = false; }, 1000); return; }
+            try { await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) }); showToast(t.success); input.value = ''; }
+            catch (err) { showToast("Error"); } finally { btn.disabled = false; }
+        }
+
+        function showToast(m) { const t = document.getElementById('toast'); if(t) { document.getElementById('toastMessage').innerText = m; t.classList.remove('opacity-0'); setTimeout(() => t.classList.add('opacity-0'), 3000); } }
+        
+        function addCurrentLocation() { 
+            const btn = document.getElementById('btnLocation');
+            if (!navigator.geolocation) return;
+            if(btn) btn.classList.add('animate-pulse');
+            navigator.geolocation.getCurrentPosition(p => { 
+                if(btn) btn.classList.remove('animate-pulse');
+                const ll = L.latLng(p.coords.latitude, p.coords.longitude); 
+                map.setView(ll, 14); 
+                addWaypoint(ll); 
+            }, () => { if(btn) btn.classList.remove('animate-pulse'); }); 
+        }
+    </script>
+</body>
+</html>
