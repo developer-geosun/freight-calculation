@@ -1,0 +1,8 @@
+// Координати КПП на кордоні за кодом країни-сусіда (не UA)
+const checkpointsData = {
+    'pl': [ { name: { uk: "Ягодин", ru: "Ягодин", en: "Yahodyn" }, lat: 51.1656, lng: 23.8569 }, { name: { uk: "Краківець", ru: "Краковец", en: "Krakovets" }, lat: 49.9535, lng: 23.1118 }, { name: { uk: "Шегині", ru: "Шегини", en: "Shehyni" }, lat: 49.7997, lng: 22.9567 }, { name: { uk: "Рава-Руська", ru: "Рава-Русская", en: "Rava-Ruska" }, lat: 50.2375, lng: 23.6190 } ],
+    'sk': [ { name: { uk: "Ужгород", ru: "Ужгород", en: "Uzhhorod" }, lat: 48.6120, lng: 22.2570 }, { name: { uk: "Малий Березний", ru: "Малый Березный", en: "Malyi Bereznyi" }, lat: 48.8822, lng: 22.4415 } ],
+    'hu': [ { name: { uk: "Чоп (Тиса)", ru: "Чоп (Тиса)", en: "Chop (Tysa)" }, lat: 48.4286, lng: 22.1764 }, { name: { uk: "Лужанка", ru: "Лужанка", en: "Luzhanka" }, lat: 48.1678, lng: 22.5855 } ],
+    'ro': [ { name: { uk: "Порубне", ru: "Порубное", en: "Porubne" }, lat: 47.9850, lng: 26.0592 }, { name: { uk: "Дякове", ru: "Дьяково", en: "Diakove" }, lat: 48.0165, lng: 23.0130 } ],
+    'md': [ { name: { uk: "Паланка", ru: "Паланка", en: "Palanka" }, lat: 46.4117, lng: 30.1583 }, { name: { uk: "Могилів-Подільський", ru: "Могилев-Подольский", en: "Mohyliv-Podilskyi" }, lat: 48.4418, lng: 27.7852 } ]
+};

@@ -1,0 +1,134 @@
+body, html { height: 100%; margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; }
+#map { height: 100vh; width: 100%; z-index: 1; }
+
+.leaflet-routing-container { display: none; }
+
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+.autocomplete-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    z-index: 2000;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 0.25rem;
+}
+
+.number-icon {
+    background: #2563eb;
+    color: white;
+    border-radius: 50%;
+    width: 24px !important;
+    height: 24px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Маркер КПП / границі — той самий стиль, що й номерні точки, зелений */
+.border-icon-marker {
+    background: #16a34a;
+    color: white;
+    border-radius: 50%;
+    width: 24px !important;
+    height: 24px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(22, 163, 74, 0.35);
+}
+
+.segment-connector {
+    position: relative;
+    margin-left: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    z-index: 5;
+}
+.segment-connector::before {
+    content: '';
+    position: absolute;
+    left: -25px;
+    top: -10px;
+    bottom: -10px;
+    width: 2px;
+    background: #e2e8f0;
+}
+.distance-pill {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 99px;
+    padding: 1px 10px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748b;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    animation: fadeIn 0.3s ease-out;
+    white-space: nowrap;
+}
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+.border-line-box {
+    position: relative;
+    padding-left: 2rem;
+    margin: 0.5rem 0;
+}
+
+#sidebar {
+    z-index: 1000;
+    transition: transform 0.3s ease-in-out, height 0.3s ease-in-out;
+}
+
+@media (max-width: 767px) {
+    #sidebar {
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 45vh;
+        border-radius: 24px 24px 0 0;
+        box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+    #sidebar.expanded {
+        height: 85vh;
+    }
+    .mobile-handle {
+        width: 40px;
+        height: 4px;
+        background: #e2e8f0;
+        border-radius: 2px;
+        margin: 8px auto;
+        display: block;
+    }
+}
+
+@media (min-width: 768px) {
+    #sidebar {
+        top: 0;
+        left: 0;
+        width: 380px;
+        height: 100vh;
+        border-radius: 0;
+    }
+    .mobile-handle { display: none; }
+}
+
+.input-error {
+    border-color: #ef4444 !important;
+    background-color: #fef2f2 !important;
+}

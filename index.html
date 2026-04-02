@@ -4,155 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Freight Calculator - GeoSun Ltd.</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Leaflet Routing Machine CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
-    <style>
-        body, html { height: 100%; margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; }
-        #map { height: 100vh; width: 100%; z-index: 1; }
-        
-        .leaflet-routing-container { display: none; }
-        
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        
-        .autocomplete-results {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background: white;
-            border-radius: 0.75rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            z-index: 2000;
-            max-height: 200px;
-            overflow-y: auto;
-            margin-top: 0.25rem;
-        }
-
-        .number-icon {
-            background: #2563eb;
-            color: white;
-            border-radius: 50%;
-            width: 24px !important;
-            height: 24px !important;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            font-weight: bold;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .border-icon-marker {
-            background: #ef4444;
-            color: white;
-            border-radius: 4px;
-            width: 28px !important;
-            height: 28px !important;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            border: 2px solid white;
-            box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
-            transform: rotate(45deg);
-        }
-        .border-icon-marker span { transform: rotate(-45deg); }
-
-        .segment-connector {
-            position: relative;
-            margin-left: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            z-index: 5;
-        }
-        .segment-connector::before {
-            content: '';
-            position: absolute;
-            left: -25px;
-            top: -10px;
-            bottom: -10px;
-            width: 2px;
-            background: #e2e8f0;
-        }
-        .distance-pill {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 99px;
-            padding: 1px 10px;
-            font-size: 10px;
-            font-weight: 700;
-            color: #64748b;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            animation: fadeIn 0.3s ease-out;
-            white-space: nowrap;
-        }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-
-        .border-line-box {
-            position: relative;
-            padding-left: 2rem;
-            margin: 0.5rem 0;
-        }
-
-        #sidebar {
-            z-index: 1000;
-            transition: transform 0.3s ease-in-out, height 0.3s ease-in-out;
-        }
-
-        @media (max-width: 767px) {
-            #sidebar {
-                bottom: 0;
-                left: 0;
-                width: 100%;
-                height: 45vh;
-                border-radius: 24px 24px 0 0;
-                box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.1);
-            }
-            #sidebar.expanded {
-                height: 85vh;
-            }
-            .mobile-handle {
-                width: 40px;
-                height: 4px;
-                background: #e2e8f0;
-                border-radius: 2px;
-                margin: 8px auto;
-                display: block;
-            }
-        }
-
-        @media (min-width: 768px) {
-            #sidebar {
-                top: 0;
-                left: 0;
-                width: 380px;
-                height: 100vh;
-                border-radius: 0;
-            }
-            .mobile-handle { display: none; }
-        }
-
-        .input-error {
-            border-color: #ef4444 !important;
-            background-color: #fef2f2 !important;
-        }
-    </style>
+    <link rel="stylesheet" href="css/app.css" />
 </head>
 <body class="bg-slate-100 relative">
 
     <div id="sidebar" class="fixed bg-white flex flex-col overflow-hidden">
         <div class="mobile-handle md:hidden cursor-pointer" onclick="toggleSidebar()"></div>
 
-        <!-- Header -->
         <div class="px-6 pt-2 pb-4 border-b border-slate-100 shrink-0">
             <div class="flex justify-between items-center mb-3">
                 <h1 class="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -171,11 +32,10 @@
             </div>
         </div>
 
-        <!-- Search -->
         <div class="p-4 shrink-0 bg-white">
             <div class="flex gap-2 relative">
                 <div class="relative flex-1">
-                    <input id="searchInput" type="text" autocomplete="off" placeholder="Додати точку..." 
+                    <input id="searchInput" type="text" autocomplete="off" placeholder="Додати точку..."
                         class="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all">
                     <div id="searchResults" class="autocomplete-results hidden custom-scrollbar"></div>
                 </div>
@@ -187,7 +47,6 @@
 
         <div id="pointsContainer" class="flex-1 overflow-y-auto custom-scrollbar px-4 pb-4 space-y-0"></div>
 
-        <!-- Route Info -->
         <div id="routeInfo" class="hidden p-5 border-t border-slate-100 bg-slate-50 shrink-0">
             <div class="space-y-4">
                 <div class="flex justify-between items-start">
@@ -200,7 +59,7 @@
 
                 <div class="space-y-1.5">
                     <label for="contactInput" class="text-[9px] font-bold text-slate-500 uppercase tracking-wider pl-1" id="lbl-contact">Контакти для зв'язку</label>
-                    <input type="text" id="contactInput" placeholder="+380... / email@..." 
+                    <input type="text" id="contactInput" placeholder="+380... / email@..."
                         class="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all">
                 </div>
 
@@ -210,7 +69,7 @@
                 </button>
             </div>
         </div>
-        
+
         <div id="emptyState" class="p-10 text-center flex-1 flex flex-col justify-center items-center opacity-30">
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-3 text-blue-500"><path d="m9 18 6-6-6-6"/></svg>
             <p class="text-xs font-medium" id="txt-empty">Оберіть точки на карті для розрахунку</p>
@@ -226,287 +85,9 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
-
-    <script>
-        const WEB_APP_URL = ""; 
-
-        let map, routingControl;
-        let waypointMarkers = [];
-        let segmentDistances = [];
-        let debounceTimer;
-        let currentLang = 'uk';
-        let isCalculating = false;
-        let currentTotalDist = 0;
-
-        const checkpointsData = {
-            'pl': [ { name: { uk: "Ягодин", ru: "Ягодин", en: "Yahodyn" }, lat: 51.1656, lng: 23.8569 }, { name: { uk: "Краківець", ru: "Краковец", en: "Krakovets" }, lat: 49.9535, lng: 23.1118 }, { name: { uk: "Шегині", ru: "Шегини", en: "Shehyni" }, lat: 49.7997, lng: 22.9567 }, { name: { uk: "Рава-Руська", ru: "Рава-Русская", en: "Rava-Ruska" }, lat: 50.2375, lng: 23.6190 } ],
-            'sk': [ { name: { uk: "Ужгород", ru: "Ужгород", en: "Uzhhorod" }, lat: 48.6120, lng: 22.2570 }, { name: { uk: "Малий Березний", ru: "Малый Березный", en: "Malyi Bereznyi" }, lat: 48.8822, lng: 22.4415 } ],
-            'hu': [ { name: { uk: "Чоп (Тиса)", ru: "Чоп (Тиса)", en: "Chop (Tysa)" }, lat: 48.4286, lng: 22.1764 }, { name: { uk: "Лужанка", ru: "Лужанка", en: "Luzhanka" }, lat: 48.1678, lng: 22.5855 } ],
-            'ro': [ { name: { uk: "Порубне", ru: "Порубное", en: "Porubne" }, lat: 47.9850, lng: 26.0592 }, { name: { uk: "Дякове", ru: "Дьяково", en: "Diakove" }, lat: 48.0165, lng: 23.0130 } ],
-            'md': [ { name: { uk: "Паланка", ru: "Паланка", en: "Palanka" }, lat: 46.4117, lng: 30.1583 }, { name: { uk: "Могилів-Подільський", ru: "Могилев-Подольский", en: "Mohyliv-Podilskyi" }, lat: 48.4418, lng: 27.7852 } ]
-        };
-
-        const translations = {
-            uk: { title: "GeoSun Ltd.", subtitle: "Планування фрахту", clear: "Очистити", searchPlaceholder: "Пошук міста...", empty: "Оберіть точки на карті", start: "Завантаження", finish: "Вивантаження", stop: "Зупинка", border: "Кордон", km: "км", borderFound: "Кордон України", findBorder: "Обрати КПП", selectCountry: "Оберіть країну транзиту", back: "Назад", searching: "Розрахунок...", totalDistLabel: "Маршрут", pts: "точок", contactLbl: "Телефон або Email", submitBtn: "Надіслати запит", success: "Надіслано!", fillFields: "Вкажіть контакти", invalidFormat: "Невірний формат", countries: { pl: "Польща", sk: "Словаччина", hu: "Угорщина", ro: "Румунія", md: "Молдова" } },
-            ru: { title: "GeoSun Ltd.", subtitle: "Планирование фрахта", clear: "Очистить", searchPlaceholder: "Поиск города...", empty: "Выберите точки на карте", start: "Загрузка", finish: "Выгрузка", stop: "Остановка", border: "Граница", km: "км", borderFound: "Граница Украины", findBorder: "Выбрать КПП", selectCountry: "Выберите страну транзита", back: "Назад", searching: "Расчет...", totalDistLabel: "Маршрут", pts: "точек", contactLbl: "Телефон или Email", submitBtn: "Отправить запрос", success: "Отправлено!", fillFields: "Укажите контакты", invalidFormat: "Неверный формат", countries: { pl: "Польша", sk: "Словакия", hu: "Венгрия", ro: "Румыния", md: "Молдова" } },
-            en: { title: "GeoSun Ltd.", subtitle: "Freight Planning", clear: "Clear", searchPlaceholder: "Search city...", empty: "Select points on map", start: "Loading", finish: "Unloading", stop: "Stop", border: "Border", km: "km", borderFound: "UA Border", findBorder: "Select checkpoint", selectCountry: "Select transit country", back: "Back", searching: "Calculating...", totalDistLabel: "Route", pts: "points", contactLbl: "Phone or Email", submitBtn: "Send request", success: "Sent!", fillFields: "Provide contacts", invalidFormat: "Invalid format", countries: { pl: "Poland", sk: "Slovakia", hu: "Hungary", ro: "Romania", md: "Moldova" } }
-        };
-
-        window.onload = () => {
-            map = L.map('map', { zoomControl: false }).setView([50.4501, 30.5234], 6);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '&copy; GeoSun' }).addTo(map);
-            L.control.zoom({ position: 'topright' }).addTo(map);
-
-            map.on('click', (e) => addWaypoint(e.latlng));
-            setupSearch('searchInput', 'searchResults');
-            setLanguage('uk');
-            window.addEventListener('resize', () => { setTimeout(() => map.invalidateSize(), 300); });
-        };
-
-        function toggleSidebar() { if (window.innerWidth < 768) document.getElementById('sidebar').classList.toggle('expanded'); }
-
-        function setLanguage(lang) {
-            currentLang = lang;
-            ['uk', 'ru', 'en'].forEach(l => {
-                const btn = document.getElementById(`lang-${l}`);
-                if(btn) btn.className = `px-2 py-1 rounded transition-all ${l === lang ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400'}`;
-            });
-            updateUILanguage();
-            updateUI();
-            if (routingControl) calculateRoute();
-        }
-
-        function updateUILanguage() {
-            const t = translations[currentLang];
-            const elements = { 'txt-title': t.title, 'txt-subtitle': t.subtitle, 'btn-clear': t.clear, 'txt-empty': t.empty, 'txt-total-dist-label': t.totalDistLabel, 'lbl-contact': t.contactLbl, 'txt-submit-btn': t.submitBtn };
-            for (let id in elements) { if(document.getElementById(id)) document.getElementById(id).innerText = elements[id]; }
-            if(document.getElementById('searchInput')) document.getElementById('searchInput').placeholder = t.searchPlaceholder;
-        }
-
-        function setupSearch(inputId, resultsId) {
-            const input = document.getElementById(inputId);
-            const results = document.getElementById(resultsId);
-            input.addEventListener('input', () => {
-                clearTimeout(debounceTimer);
-                const query = input.value.trim();
-                if (query.length < 3) { results.classList.add('hidden'); return; }
-                debounceTimer = setTimeout(async () => {
-                    try {
-                        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&accept-language=${currentLang}&addressdetails=1`);
-                        const data = await res.json();
-                        showSearchResults(data, results, input);
-                    } catch (err) {}
-                }, 500);
-            });
-        }
-
-        function showSearchResults(data, container, input) {
-            container.innerHTML = '';
-            if (!data || data.length === 0) { container.classList.add('hidden'); return; }
-            data.forEach(item => {
-                const div = document.createElement('div');
-                div.className = "p-3 hover:bg-slate-50 cursor-pointer text-sm border-b border-slate-50 last:border-none";
-                div.innerText = item.display_name;
-                div.onclick = () => {
-                    input.value = '';
-                    container.classList.add('hidden');
-                    addWaypoint(L.latLng(item.lat, item.lon), item.display_name, item.address?.country_code);
-                };
-                container.appendChild(div);
-            });
-            container.classList.remove('hidden');
-        }
-
-        async function addWaypoint(latlng, knownAddress = null, country = null, atIndex = null, isBorder = false) {
-            isCalculating = true;
-            const res = knownAddress && country ? { display_name: knownAddress, address: { country_code: country } } : await getAddressFull(latlng);
-            const waypointObj = { marker: L.marker(latlng, { draggable: true }).addTo(map), address: res.display_name, country: res.address?.country_code?.toLowerCase() || null, isBorder };
-            if (atIndex !== null) waypointMarkers.splice(atIndex, 0, waypointObj); else waypointMarkers.push(waypointObj);
-            waypointObj.marker.on('dragend', async () => {
-                isCalculating = true;
-                const updated = await getAddressFull(waypointObj.marker.getLatLng());
-                waypointObj.address = updated.display_name;
-                waypointObj.country = updated.address?.country_code?.toLowerCase() || null;
-                calculateRoute();
-            });
-            refreshMarkerIcons();
-            updateUI();
-            calculateRoute();
-            if (waypointMarkers.length === 1 && window.innerWidth < 768) document.getElementById('sidebar').classList.add('expanded');
-        }
-
-        async function getAddressFull(latlng) {
-            try {
-                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latlng.lat}&lon=${latlng.lng}&accept-language=${currentLang}&addressdetails=1`);
-                const data = await res.json();
-                return data;
-            } catch (err) { return { display_name: `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`, address: {} }; }
-        }
-
-        function removeWaypoint(index) {
-            if (waypointMarkers[index].marker) map.removeLayer(waypointMarkers[index].marker);
-            waypointMarkers.splice(index, 1);
-            segmentDistances = [];
-            calculateRoute();
-        }
-
-        function refreshMarkerIcons() {
-            waypointMarkers.forEach((obj, i) => {
-                obj.marker.setIcon(L.divIcon({ className: obj.isBorder ? 'border-icon-marker' : 'number-icon', html: obj.isBorder ? '<span>🚧</span>' : `<span>${i + 1}</span>`, iconSize: [28, 28] }));
-            });
-        }
-
-        function clearAllPoints() {
-            waypointMarkers.forEach(obj => { if(obj.marker) map.removeLayer(obj.marker); });
-            waypointMarkers = []; segmentDistances = [];
-            if (routingControl) { try { map.removeControl(routingControl); } catch(e){} routingControl = null; }
-            updateUI();
-        }
-
-        function updateUI() {
-            const container = document.getElementById('pointsContainer');
-            if(!container) return;
-            container.innerHTML = '';
-            const t = translations[currentLang];
-            if (waypointMarkers.length === 0) {
-                document.getElementById('emptyState').classList.remove('hidden');
-                document.getElementById('routeInfo').classList.add('hidden');
-                return;
-            }
-            document.getElementById('emptyState').classList.add('hidden');
-            waypointMarkers.forEach((obj, i) => {
-                const label = i === 0 ? t.start : (i === waypointMarkers.length - 1 ? t.finish : (obj.isBorder ? t.border : t.stop));
-                const pointDiv = document.createElement('div');
-                pointDiv.className = `flex items-center gap-3 p-3 rounded-xl group relative z-10 shadow-sm border mb-2 ${obj.isBorder ? 'bg-red-50 border-red-100' : 'bg-white border-slate-100'}`;
-                pointDiv.innerHTML = `
-                    <div class="flex-none w-6 h-6 ${obj.isBorder ? 'bg-red-500' : 'bg-blue-600'} text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">${obj.isBorder ? "🚧" : (i+1)}</div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-[8px] uppercase font-bold tracking-wider ${obj.isBorder ? 'text-red-500' : 'text-slate-400'}">${label}</p>
-                        <p class="text-[12px] text-slate-700 font-semibold break-words leading-tight">${obj.address || ''}</p>
-                        <p class="text-[9px] text-slate-400 font-mono mt-0.5">${obj.marker.getLatLng().lat.toFixed(5)}, ${obj.marker.getLatLng().lng.toFixed(5)}</p>
-                    </div>
-                    <button onclick="removeWaypoint(${i})" class="p-2 text-slate-300 hover:text-red-500 transition-colors"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
-                `;
-                container.appendChild(pointDiv);
-                if (i < waypointMarkers.length - 1) {
-                    const dist = segmentDistances[i];
-                    const connector = document.createElement('div');
-                    connector.className = "segment-connector";
-                    connector.innerHTML = dist ? `<div class="distance-pill"><span>${(dist/1000).toFixed(1)} ${t.km}</span></div>` : (isCalculating ? `<div class="distance-pill opacity-50"><span class="animate-pulse">...</span></div>` : '');
-                    container.appendChild(connector);
-
-                    const c1 = obj.country;
-                    const c2 = waypointMarkers[i+1].country;
-                    if (c1 && c2 && c1 !== c2 && !obj.isBorder && !waypointMarkers[i+1].isBorder) {
-                        if (c1 === 'ua' || c2 === 'ua') {
-                            const target = c1 === 'ua' ? c2 : c1;
-                            const isNeighbor = !!checkpointsData[target];
-                            const borderUI = document.createElement('div');
-                            borderUI.className = "border-line-box";
-                            borderUI.innerHTML = `
-                                <div class="bg-blue-50/50 border border-blue-100 rounded-xl p-2 relative shadow-sm mb-2">
-                                    <button onclick="toggleBorderDropdown(${i}, '${target}', ${isNeighbor})" class="w-full flex items-center justify-between text-left px-1">
-                                        <span class="text-[9px] font-bold text-blue-700 uppercase tracking-tighter">${t.borderFound}</span>
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-blue-400"><path d="m6 9 6 6 6-6"/></svg>
-                                    </button>
-                                    <div id="dropdown-border-${i}" class="hidden mt-2 bg-white rounded-lg border border-blue-50 overflow-hidden flex flex-col max-h-32 overflow-y-auto custom-scrollbar"></div>
-                                </div>
-                            `;
-                            container.appendChild(borderUI);
-                        }
-                    }
-                }
-            });
-        }
-
-        function toggleBorderDropdown(idx, country, isNeighbor) {
-            const list = document.getElementById(`dropdown-border-${idx}`);
-            if(!list) return;
-            list.classList.toggle('hidden');
-            if(list.innerHTML === '') {
-                if(isNeighbor) {
-                    checkpointsData[country].forEach(p => {
-                        const btn = document.createElement('button');
-                        btn.className = "w-full text-left p-2 hover:bg-blue-50 text-[11px] border-b border-blue-50 last:border-none";
-                        btn.innerText = p.name[currentLang] || p.name['en'];
-                        btn.onclick = () => addWaypoint(L.latLng(p.lat, p.lng), p.name[currentLang], country, idx + 1, true);
-                        list.appendChild(btn);
-                    });
-                } else {
-                    const t = translations[currentLang];
-                    list.innerHTML = `<div class="p-2 text-[9px] font-bold text-slate-400 uppercase">${t.selectCountry}</div>`;
-                    Object.keys(checkpointsData).forEach(code => {
-                        const btn = document.createElement('button');
-                        btn.className = "w-full text-left p-2 hover:bg-blue-50 text-[11px] border-b border-blue-50 last:border-none";
-                        btn.innerText = t.countries[code] || code.toUpperCase();
-                        btn.onclick = () => { list.innerHTML = ''; toggleBorderDropdown(idx, code, true); };
-                        list.appendChild(btn);
-                    });
-                }
-            }
-        }
-
-        function calculateRoute() {
-            const infoEl = document.getElementById('routeInfo');
-            if (waypointMarkers.length < 2) {
-                if (routingControl) { try { map.removeControl(routingControl); } catch(e){} routingControl = null; }
-                if (infoEl) infoEl.classList.add('hidden');
-                updateUI(); return;
-            }
-            const wpts = waypointMarkers.map(obj => obj.marker.getLatLng());
-            if (!routingControl) {
-                routingControl = L.Routing.control({ waypoints: wpts, createMarker: () => null, lineOptions: { styles: [{ color: '#2563eb', weight: 5, opacity: 0.7 }] }, router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1', language: currentLang }), fitSelectedRoutes: false, show: false }).addTo(map);
-                routingControl.on('routesfound', (e) => {
-                    const r = e.routes[0]; isCalculating = false; segmentDistances = [];
-                    if (r.waypointIndices) {
-                        for (let i = 0; i < r.waypointIndices.length - 1; i++) {
-                            let d = 0;
-                            for (let j = r.waypointIndices[i]; j < r.waypointIndices[i+1]; j++) { if(r.coordinates[j] && r.coordinates[j+1]) d += r.coordinates[j].distanceTo(r.coordinates[j+1]); }
-                            segmentDistances.push(d);
-                        }
-                    }
-                    currentTotalDist = segmentDistances.reduce((a, b) => a + b, 0);
-                    if(document.getElementById('totalDistance')) document.getElementById('totalDistance').innerText = (currentTotalDist / 1000).toFixed(1) + ` ${translations[currentLang].km}`;
-                    if(document.getElementById('routePointsCount')) document.getElementById('routePointsCount').innerText = `${waypointMarkers.length} ${translations[currentLang].pts}`;
-                    if(infoEl) infoEl.classList.remove('hidden');
-                    updateUI();
-                    const padding = window.innerWidth < 768 ? [20, 20] : [50, 50];
-                    const offset = window.innerWidth < 768 ? [0, 0] : [380, 0];
-                    map.fitBounds(L.latLngBounds(r.coordinates), { padding: padding, paddingTopLeft: offset, animate: true });
-                });
-            } else { routingControl.setWaypoints(wpts); }
-        }
-
-        async function sendToGoogleSheets() {
-            const input = document.getElementById('contactInput');
-            const contact = input ? input.value.trim() : '';
-            const t = translations[currentLang];
-            input.classList.remove('input-error');
-            if(!contact || (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact) && !/^\+?[\d\s\-()]{7,20}$/.test(contact))) { input.classList.add('input-error'); showToast(t.invalidFormat); return; }
-            const btn = document.getElementById('btn-submit');
-            btn.disabled = true;
-            const data = { timestamp: new Date().toLocaleString(), contact, distance: (currentTotalDist/1000).toFixed(1) + " km", route: waypointMarkers.map((m, i) => `${i+1}. ${m.address}`).join(' -> ') };
-            if(!WEB_APP_URL) { console.log(data); setTimeout(() => { showToast(t.success); btn.disabled = false; }, 1000); return; }
-            try { await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) }); showToast(t.success); input.value = ''; }
-            catch (err) { showToast("Error"); } finally { btn.disabled = false; }
-        }
-
-        function showToast(m) { 
-            const t = document.getElementById('toast'); 
-            if(t) { document.getElementById('toastMessage').innerText = m; t.classList.remove('opacity-0'); setTimeout(() => { t.classList.add('opacity-0'); }, 3000); } 
-        }
-        
-        function addCurrentLocation() { 
-            if (!navigator.geolocation) return;
-            const btn = document.getElementById('btnLocation');
-            btn.classList.add('animate-pulse');
-            navigator.geolocation.getCurrentPosition(p => { 
-                btn.classList.remove('animate-pulse');
-                const ll = L.latLng(p.coords.latitude, p.coords.longitude); 
-                map.setView(ll, 12); 
-                addWaypoint(ll); 
-            }, () => { btn.classList.remove('animate-pulse'); }); 
-        }
-    </script>
+    <script src="js/config.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/map-app.js"></script>
 </body>
 </html>
