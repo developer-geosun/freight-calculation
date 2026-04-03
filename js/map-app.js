@@ -5,6 +5,9 @@ var segmentDistances = [];
 var debounceTimer;
 var isCalculating = false;
 var currentTotalDist = 0;
+/** Поточні результати геопошуку та індекс підсвіченого рядка (клавіші ↑/↓) */
+var searchResultsItems = [];
+var searchHighlightIndex = -1;
 
 window.onload = () => {
     map = L.map('map', { zoomControl: false }).setView([50.4501, 30.5234], 6);
@@ -24,8 +27,13 @@ function setupSearch(inputId, resultsId) {
     const results = document.getElementById(resultsId);
     input.addEventListener('input', () => {
         clearTimeout(debounceTimer);
+        searchHighlightIndex = -1;
         const query = input.value.trim();
-        if (query.length < 3) { results.classList.add('hidden'); return; }
+        if (query.length < 3) {
+            results.classList.add('hidden');
+            searchResultsItems = [];
+            return;
+        }
         debounceTimer = setTimeout(async () => {
             try {
                 const res = await fetch(`${NOMINATIM_SEARCH_URL}?format=json&q=${encodeURIComponent(query)}&limit=5&accept-language=${currentLang}&addressdetails=1`);
@@ -34,20 +42,62 @@ function setupSearch(inputId, resultsId) {
             } catch (err) {}
         }, 500);
     });
+    input.addEventListener('keydown', (e) => {
+        if (results.classList.contains('hidden') || searchResultsItems.length === 0) return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            searchHighlightIndex = Math.min(searchHighlightIndex + 1, searchResultsItems.length - 1);
+            if (searchHighlightIndex < 0) searchHighlightIndex = 0;
+            updateSearchResultsHighlight(results);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            searchHighlightIndex = Math.max(searchHighlightIndex - 1, -1);
+            updateSearchResultsHighlight(results);
+        } else if (e.key === 'Enter' && searchHighlightIndex >= 0) {
+            e.preventDefault();
+            applySearchSelection(searchResultsItems[searchHighlightIndex], results, input);
+        } else if (e.key === 'Escape') {
+            results.classList.add('hidden');
+            searchHighlightIndex = -1;
+        }
+    });
+}
+
+function updateSearchResultsHighlight(container) {
+    const children = container.children;
+    const active = 'p-3 cursor-pointer text-sm border-b border-slate-50 last:border-none bg-blue-100';
+    const idle = 'p-3 hover:bg-slate-50 cursor-pointer text-sm border-b border-slate-50 last:border-none';
+    for (let i = 0; i < children.length; i++) {
+        children[i].className = i === searchHighlightIndex ? active : idle;
+    }
+    if (searchHighlightIndex >= 0 && children[searchHighlightIndex]) {
+        children[searchHighlightIndex].scrollIntoView({ block: 'nearest' });
+    }
+}
+
+function applySearchSelection(item, container, input) {
+    input.value = '';
+    container.classList.add('hidden');
+    searchResultsItems = [];
+    searchHighlightIndex = -1;
+    addWaypoint(L.latLng(item.lat, item.lon), item.display_name, item.address?.country_code);
 }
 
 function showSearchResults(data, container, input) {
     container.innerHTML = '';
+    searchResultsItems = [];
+    searchHighlightIndex = -1;
     if (!data || data.length === 0) { container.classList.add('hidden'); return; }
-    data.forEach(item => {
+    searchResultsItems = data;
+    data.forEach((item, idx) => {
         const div = document.createElement('div');
-        div.className = "p-3 hover:bg-slate-50 cursor-pointer text-sm border-b border-slate-50 last:border-none";
+        div.className = 'p-3 hover:bg-slate-50 cursor-pointer text-sm border-b border-slate-50 last:border-none';
         div.innerText = item.display_name;
-        div.onclick = () => {
-            input.value = '';
-            container.classList.add('hidden');
-            addWaypoint(L.latLng(item.lat, item.lon), item.display_name, item.address?.country_code);
+        div.onmouseenter = () => {
+            searchHighlightIndex = idx;
+            updateSearchResultsHighlight(container);
         };
+        div.onclick = () => applySearchSelection(item, container, input);
         container.appendChild(div);
     });
     container.classList.remove('hidden');
@@ -83,6 +133,7 @@ function removeWaypoint(index) {
     if (waypointMarkers[index].marker) map.removeLayer(waypointMarkers[index].marker);
     waypointMarkers.splice(index, 1);
     segmentDistances = [];
+    refreshMarkerIcons();
     calculateRoute();
 }
 
