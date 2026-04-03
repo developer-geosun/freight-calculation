@@ -8,6 +8,27 @@ var currentTotalDist = 0;
 /** Поточні результати геопошуку та індекс підсвіченого рядка (клавіші ↑/↓) */
 var searchResultsItems = [];
 var searchHighlightIndex = -1;
+/** true під час відправки заявки — кнопка лишається disabled */
+var isSubmitting = false;
+
+/** Чи відповідає рядок формату телефону або email */
+function isValidContact(contact) {
+    const c = (contact || '').trim();
+    if (!c) return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c) || /^\+?[\d\s\-()]{7,20}$/.test(c);
+}
+
+/** Увімкнути кнопку лише за валідного контакту (і не під час відправки) */
+function updateSubmitButtonState() {
+    const input = document.getElementById('contactInput');
+    const btn = document.getElementById('btn-submit');
+    if (!btn) return;
+    if (isSubmitting) {
+        btn.disabled = true;
+        return;
+    }
+    btn.disabled = !isValidContact(input ? input.value : '');
+}
 
 /** Оновлення підпису © на тайлах залежно від мови */
 function syncMapAttribution() {
@@ -32,6 +53,12 @@ window.onload = () => {
     map.on('click', (e) => addWaypoint(e.latlng));
     setupSearch('searchInput', 'searchResults');
     setLanguage('uk');
+    const contactInput = document.getElementById('contactInput');
+    if (contactInput) {
+        contactInput.addEventListener('input', updateSubmitButtonState);
+        contactInput.addEventListener('paste', () => setTimeout(updateSubmitButtonState, 0));
+    }
+    updateSubmitButtonState();
     window.addEventListener('resize', () => { setTimeout(() => map.invalidateSize(), 300); });
 };
 
@@ -186,6 +213,7 @@ function updateUI() {
     if (waypointMarkers.length === 0) {
         document.getElementById('emptyState').classList.remove('hidden');
         document.getElementById('routeInfo').classList.add('hidden');
+        updateSubmitButtonState();
         return;
     }
     document.getElementById('emptyState').classList.add('hidden');
@@ -246,6 +274,7 @@ function updateUI() {
             }
         }
     });
+    updateSubmitButtonState();
 }
 
 function toggleBorderDropdown(idx) {
@@ -337,13 +366,22 @@ async function sendToGoogleSheets() {
     const contact = input ? input.value.trim() : '';
     const t = translations[currentLang];
     input.classList.remove('input-error');
-    if(!contact || (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact) && !/^\+?[\d\s\-()]{7,20}$/.test(contact))) { input.classList.add('input-error'); showToast(t.invalidFormat); return; }
-    const btn = document.getElementById('btn-submit');
-    btn.disabled = true;
+    if (!isValidContact(contact)) { input.classList.add('input-error'); showToast(t.invalidFormat); return; }
+    isSubmitting = true;
+    updateSubmitButtonState();
     const data = { timestamp: new Date().toLocaleString(), contact, distance: (currentTotalDist/1000).toFixed(1) + " km", route: waypointMarkers.map((m, i) => `${i+1}. ${m.address}`).join(' -> ') };
-    if(!WEB_APP_URL) { console.log(data); setTimeout(() => { showToast(t.success); btn.disabled = false; }, 1000); return; }
+    if (!WEB_APP_URL) {
+        console.log(data);
+        setTimeout(() => {
+            showToast(t.success);
+            isSubmitting = false;
+            updateSubmitButtonState();
+        }, 1000);
+        return;
+    }
     try { await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) }); showToast(t.success); input.value = ''; }
-    catch (err) { showToast("Error"); } finally { btn.disabled = false; }
+    catch (err) { showToast("Error"); }
+    finally { isSubmitting = false; updateSubmitButtonState(); }
 }
 
 function showToast(m) {
