@@ -137,6 +137,19 @@ function removeWaypoint(index) {
     calculateRoute();
 }
 
+/** Зміна порядку звичайної точки в списку (обмін з сусідом); КПП не рухаємо */
+function moveWaypoint(index, delta) {
+    const j = index + delta;
+    if (j < 0 || j >= waypointMarkers.length) return;
+    if (waypointMarkers[index].isBorder) return;
+    [waypointMarkers[index], waypointMarkers[j]] = [waypointMarkers[j], waypointMarkers[index]];
+    segmentDistances = [];
+    isCalculating = true;
+    refreshMarkerIcons();
+    updateUI();
+    calculateRoute();
+}
+
 function refreshMarkerIcons() {
     waypointMarkers.forEach((obj, i) => {
         obj.marker.setIcon(L.divIcon({ className: obj.isBorder ? 'border-icon-marker' : 'number-icon', html: `<span>${i + 1}</span>`, iconSize: [28, 28] }));
@@ -161,18 +174,31 @@ function updateUI() {
         return;
     }
     document.getElementById('emptyState').classList.add('hidden');
+    const lastIdx = waypointMarkers.length - 1;
     waypointMarkers.forEach((obj, i) => {
-        const label = i === 0 ? t.start : (i === waypointMarkers.length - 1 ? t.finish : (obj.isBorder ? t.border : t.stop));
+        const label = i === 0 ? t.start : (i === lastIdx ? t.finish : (obj.isBorder ? t.border : t.stop));
         const pointDiv = document.createElement('div');
         pointDiv.className = `flex items-center gap-3 p-3 rounded-xl group relative z-10 shadow-sm border mb-2 ${obj.isBorder ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-slate-100'}`;
+        const reorderBlock = obj.isBorder ? '' : `
+            <div class="flex flex-col shrink-0 gap-0.5">
+                <button type="button" onclick="moveWaypoint(${i}, -1)" title="${t.moveUp}" aria-label="${t.moveUp}" ${i === 0 ? 'disabled' : ''} class="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-slate-50 disabled:opacity-25 disabled:pointer-events-none transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m18 15-6-6-6 6"/></svg>
+                </button>
+                <button type="button" onclick="moveWaypoint(${i}, 1)" title="${t.moveDown}" aria-label="${t.moveDown}" ${i === lastIdx ? 'disabled' : ''} class="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-slate-50 disabled:opacity-25 disabled:pointer-events-none transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+            </div>`;
         pointDiv.innerHTML = `
             <div class="flex-none w-6 h-6 ${obj.isBorder ? 'bg-green-600' : 'bg-blue-600'} text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">${i + 1}</div>
             <div class="flex-1 min-w-0">
                 <p class="text-[8px] uppercase font-bold tracking-wider ${obj.isBorder ? 'text-green-600' : 'text-slate-400'}">${label}</p>
                 <p class="text-[12px] text-slate-700 font-semibold break-words leading-tight">${obj.address || ''}</p>
-                <p class="text-[9px] text-slate-400 font-mono mt-0.5">${obj.marker.getLatLng().lat.toFixed(5)}, ${obj.marker.getLatLng().lng.toFixed(5)}</p>
+                <p class="text-[9px] font-mono mt-0.5 ${obj.isBorder ? 'text-green-600' : 'text-blue-600'}">${obj.marker.getLatLng().lat.toFixed(5)}, ${obj.marker.getLatLng().lng.toFixed(5)}</p>
             </div>
-            <button onclick="removeWaypoint(${i})" class="p-2 text-slate-300 hover:text-red-500 transition-colors"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
+            <div class="flex items-center shrink-0 gap-0.5">
+                ${reorderBlock}
+                <button type="button" onclick="removeWaypoint(${i})" class="p-2 text-slate-300 hover:text-red-500 transition-colors"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
+            </div>
         `;
         container.appendChild(pointDiv);
         if (i < waypointMarkers.length - 1) {
@@ -186,17 +212,15 @@ function updateUI() {
             const c2 = waypointMarkers[i+1].country;
             if (c1 && c2 && c1 !== c2 && !obj.isBorder && !waypointMarkers[i+1].isBorder) {
                 if (c1 === 'ua' || c2 === 'ua') {
-                    const target = c1 === 'ua' ? c2 : c1;
-                    const isNeighbor = !!checkpointsData[target];
                     const borderUI = document.createElement('div');
                     borderUI.className = "border-line-box";
                     borderUI.innerHTML = `
-                        <div class="bg-blue-50/50 border border-blue-100 rounded-xl p-2 relative shadow-sm mb-2">
-                            <button onclick="toggleBorderDropdown(${i}, '${target}', ${isNeighbor})" class="w-full flex items-center justify-between text-left px-1">
-                                <span class="text-[9px] font-bold text-blue-700 uppercase tracking-tighter">${t.borderFound}</span>
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-blue-400"><path d="m6 9 6 6 6-6"/></svg>
+                        <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-2 relative shadow-sm mb-2">
+                            <button onclick="toggleBorderDropdown(${i})" class="w-full flex items-center justify-between text-left px-1">
+                                <span class="text-[9px] font-bold text-green-600 uppercase tracking-tighter">${t.borderFound}</span>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-green-500"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div id="dropdown-border-${i}" class="hidden mt-2 bg-white rounded-lg border border-blue-50 overflow-hidden flex flex-col max-h-32 overflow-y-auto custom-scrollbar"></div>
+                            <div id="dropdown-border-${i}" class="hidden mt-2 bg-white rounded-lg border border-emerald-100 overflow-hidden flex flex-col max-h-32 overflow-y-auto custom-scrollbar"></div>
                         </div>
                     `;
                     container.appendChild(borderUI);
@@ -206,31 +230,57 @@ function updateUI() {
     });
 }
 
-function toggleBorderDropdown(idx, country, isNeighbor) {
+function toggleBorderDropdown(idx) {
     const list = document.getElementById(`dropdown-border-${idx}`);
-    if(!list) return;
+    if (!list) return;
+    const willOpen = list.classList.contains('hidden');
     list.classList.toggle('hidden');
-    if(list.innerHTML === '') {
-        if(isNeighbor) {
-            checkpointsData[country].forEach(p => {
-                const btn = document.createElement('button');
-                btn.className = "w-full text-left p-2 hover:bg-blue-50 text-[11px] border-b border-blue-50 last:border-none";
-                btn.innerText = p.name[currentLang] || p.name['en'];
-                btn.onclick = () => addWaypoint(L.latLng(p.lat, p.lng), p.name[currentLang], country, idx + 1, true);
-                list.appendChild(btn);
-            });
-        } else {
-            const t = translations[currentLang];
-            list.innerHTML = `<div class="p-2 text-[9px] font-bold text-slate-400 uppercase">${t.selectCountry}</div>`;
-            Object.keys(checkpointsData).forEach(code => {
-                const btn = document.createElement('button');
-                btn.className = "w-full text-left p-2 hover:bg-blue-50 text-[11px] border-b border-blue-50 last:border-none";
-                btn.innerText = t.countries[code] || code.toUpperCase();
-                btn.onclick = () => { list.innerHTML = ''; toggleBorderDropdown(idx, code, true); };
-                list.appendChild(btn);
-            });
-        }
+    if (willOpen) {
+        renderBorderCountryPicker(idx);
+    } else {
+        list.innerHTML = '';
     }
+}
+
+/** Крок 1: країна транзиту (завжди перед вибором КПП) */
+function renderBorderCountryPicker(idx) {
+    const list = document.getElementById(`dropdown-border-${idx}`);
+    if (!list) return;
+    list.innerHTML = '';
+    const t = translations[currentLang];
+    const hint = document.createElement('div');
+    hint.className = 'p-2 text-[9px] font-bold text-slate-400 uppercase';
+    hint.innerText = t.selectCountry;
+    list.appendChild(hint);
+    Object.keys(checkpointsData).forEach(code => {
+        const btn = document.createElement('button');
+        btn.className = 'w-full text-left p-2 hover:bg-emerald-50 text-[11px] border-b border-emerald-100 last:border-none';
+        btn.innerText = t.countries[code] || code.toUpperCase();
+        btn.onclick = () => renderBorderCheckpointList(idx, code);
+        list.appendChild(btn);
+    });
+}
+
+/** Крок 2: пункт перетину кордону для обраної країни */
+function renderBorderCheckpointList(idx, country) {
+    const list = document.getElementById(`dropdown-border-${idx}`);
+    if (!list || !checkpointsData[country]) return;
+    list.innerHTML = '';
+    const t = translations[currentLang];
+    const backBtn = document.createElement('button');
+    backBtn.type = 'button';
+    backBtn.className = 'w-full text-left p-2 text-[10px] font-bold text-green-600 uppercase border-b border-emerald-100 hover:bg-emerald-50';
+    backBtn.innerText = t.back;
+    backBtn.onclick = () => renderBorderCountryPicker(idx);
+    list.appendChild(backBtn);
+    checkpointsData[country].forEach(p => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'w-full text-left p-2 hover:bg-emerald-50 text-[11px] border-b border-emerald-100 last:border-none';
+        btn.innerText = p.name[currentLang] || p.name.en;
+        btn.onclick = () => addWaypoint(L.latLng(p.lat, p.lng), p.name[currentLang], country, idx + 1, true);
+        list.appendChild(btn);
+    });
 }
 
 function calculateRoute() {
@@ -281,16 +331,4 @@ async function sendToGoogleSheets() {
 function showToast(m) {
     const t = document.getElementById('toast');
     if(t) { document.getElementById('toastMessage').innerText = m; t.classList.remove('opacity-0'); setTimeout(() => { t.classList.add('opacity-0'); }, 3000); }
-}
-
-function addCurrentLocation() {
-    if (!navigator.geolocation) return;
-    const btn = document.getElementById('btnLocation');
-    btn.classList.add('animate-pulse');
-    navigator.geolocation.getCurrentPosition(p => {
-        btn.classList.remove('animate-pulse');
-        const ll = L.latLng(p.coords.latitude, p.coords.longitude);
-        map.setView(ll, 12);
-        addWaypoint(ll);
-    }, () => { btn.classList.remove('animate-pulse'); });
 }

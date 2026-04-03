@@ -7,8 +7,7 @@ const checkpointsData = {
         { name: { uk: 'Рава-Руська', ru: 'Рава-Русская', en: 'Rava-Ruska' }, lat: 50.27301, lng: 23.59123 },
     ],
     sk: [
-        { name: { uk: 'Ужгород', ru: 'Ужгород', en: 'Uzhhorod' }, lat: 48.6120, lng: 22.2570 },
-        { name: { uk: 'Малий Березний', ru: 'Малый Березный', en: 'Malyi Bereznyi' }, lat: 48.8822, lng: 22.4415 },
+        { name: { uk: 'Ужгород', ru: 'Ужгород', en: 'Uzhhorod' }, lat: 48.6120, lng: 22.2570 },        
     ],
     hu: [
         { name: { uk: 'Чоп (Тиса)', ru: 'Чоп (Тиса)', en: 'Chop (Tysa)' }, lat: 48.4286, lng: 22.1764 },
