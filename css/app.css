@@ -54,7 +54,7 @@ body, html { height: 100%; margin: 0; overflow: hidden; font-family: 'Inter', sa
 
 .segment-connector {
     position: relative;
-    margin-left: 36px;
+    margin-left: 42px;
     height: 36px;
     display: flex;
     align-items: center;
@@ -86,7 +86,7 @@ body, html { height: 100%; margin: 0; overflow: hidden; font-family: 'Inter', sa
 
 .border-line-box {
     position: relative;
-    padding-left: 2rem;
+    padding-left: 2.375rem;
     margin: 0.5rem 0;
 }
 

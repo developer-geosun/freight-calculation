@@ -1,5 +1,5 @@
 // Карта, маршрутизація, точки, пошук, відправка заявки
-var map, routingControl;
+var map, routingControl, baseTileLayer;
 var waypointMarkers = [];
 var segmentDistances = [];
 var debounceTimer;
@@ -9,9 +9,24 @@ var currentTotalDist = 0;
 var searchResultsItems = [];
 var searchHighlightIndex = -1;
 
+/** Оновлення підпису © на тайлах залежно від мови */
+function syncMapAttribution() {
+    if (!map || !baseTileLayer) return;
+    const t = translations[currentLang];
+    const next = '&copy; ' + (t.mapAttribution || 'GeoSan');
+    const prev = baseTileLayer.options.attribution;
+    if (prev === next) return;
+    const ac = map.attributionControl;
+    if (ac) {
+        if (prev) ac.removeAttribution(prev);
+        ac.addAttribution(next);
+    }
+    baseTileLayer.options.attribution = next;
+}
+
 window.onload = () => {
     map = L.map('map', { zoomControl: false }).setView([50.4501, 30.5234], 6);
-    L.tileLayer(CARTO_TILE_LAYER_URL, { attribution: '&copy; GeoSun' }).addTo(map);
+    baseTileLayer = L.tileLayer(CARTO_TILE_LAYER_URL, { attribution: '&copy; Геосан' }).addTo(map);
     L.control.zoom({ position: 'topright' }).addTo(map);
 
     map.on('click', (e) => addWaypoint(e.latlng));
@@ -179,24 +194,27 @@ function updateUI() {
         const label = i === 0 ? t.start : (i === lastIdx ? t.finish : (obj.isBorder ? t.border : t.stop));
         const pointDiv = document.createElement('div');
         pointDiv.className = `flex items-center gap-3 p-3 rounded-xl group relative z-10 shadow-sm border mb-2 ${obj.isBorder ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-slate-100'}`;
-        const reorderBlock = obj.isBorder ? '' : `
-            <div class="flex flex-col shrink-0 gap-0.5">
-                <button type="button" onclick="moveWaypoint(${i}, -1)" title="${t.moveUp}" aria-label="${t.moveUp}" ${i === 0 ? 'disabled' : ''} class="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-slate-50 disabled:opacity-25 disabled:pointer-events-none transition-colors">
+        const numBadge = `<div class="flex-none w-6 h-6 ${obj.isBorder ? 'bg-green-600' : 'bg-blue-600'} text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">${i + 1}</div>`;
+        // Стрілки зліва над/під номером; КПП без перестановки — лише бейдж по центру колонки
+        const leftCol = obj.isBorder
+            ? `<div class="flex flex-col items-center justify-center shrink-0 w-9">${numBadge}</div>`
+            : `<div class="flex flex-col items-center shrink-0 w-9 gap-0.5">
+                <button type="button" onclick="moveWaypoint(${i}, -1)" title="${t.moveUp}" aria-label="${t.moveUp}" ${i === 0 ? 'disabled' : ''} class="p-0.5 rounded-md text-slate-400 hover:text-blue-600 hover:bg-slate-50 disabled:opacity-25 disabled:pointer-events-none transition-colors leading-none">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m18 15-6-6-6 6"/></svg>
                 </button>
-                <button type="button" onclick="moveWaypoint(${i}, 1)" title="${t.moveDown}" aria-label="${t.moveDown}" ${i === lastIdx ? 'disabled' : ''} class="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-slate-50 disabled:opacity-25 disabled:pointer-events-none transition-colors">
+                ${numBadge}
+                <button type="button" onclick="moveWaypoint(${i}, 1)" title="${t.moveDown}" aria-label="${t.moveDown}" ${i === lastIdx ? 'disabled' : ''} class="p-0.5 rounded-md text-slate-400 hover:text-blue-600 hover:bg-slate-50 disabled:opacity-25 disabled:pointer-events-none transition-colors leading-none">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
                 </button>
             </div>`;
         pointDiv.innerHTML = `
-            <div class="flex-none w-6 h-6 ${obj.isBorder ? 'bg-green-600' : 'bg-blue-600'} text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">${i + 1}</div>
+            ${leftCol}
             <div class="flex-1 min-w-0">
                 <p class="text-[8px] uppercase font-bold tracking-wider ${obj.isBorder ? 'text-green-600' : 'text-slate-400'}">${label}</p>
                 <p class="text-[12px] text-slate-700 font-semibold break-words leading-tight">${obj.address || ''}</p>
                 <p class="text-[9px] font-mono mt-0.5 ${obj.isBorder ? 'text-green-600' : 'text-blue-600'}">${obj.marker.getLatLng().lat.toFixed(5)}, ${obj.marker.getLatLng().lng.toFixed(5)}</p>
             </div>
-            <div class="flex items-center shrink-0 gap-0.5">
-                ${reorderBlock}
+            <div class="flex items-center shrink-0 self-center">
                 <button type="button" onclick="removeWaypoint(${i})" class="p-2 text-slate-300 hover:text-red-500 transition-colors"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
             </div>
         `;
@@ -220,7 +238,7 @@ function updateUI() {
                                 <span class="text-[9px] font-bold text-green-600 uppercase tracking-tighter">${t.borderFound}</span>
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-green-500"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
-                            <div id="dropdown-border-${i}" class="hidden mt-2 bg-white rounded-lg border border-emerald-100 overflow-hidden flex flex-col max-h-32 overflow-y-auto custom-scrollbar"></div>
+                            <div id="dropdown-border-${i}" class="hidden mt-2 bg-white rounded-lg border border-emerald-100 flex flex-col max-h-64 overflow-y-auto custom-scrollbar"></div>
                         </div>
                     `;
                     container.appendChild(borderUI);
