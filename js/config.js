@@ -1,5 +1,5 @@
 // URL веб-додатку Google Apps Script (POST); порожньо — лише лог у консоль
-const WEB_APP_URL = '';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby-WfRfrQmG6jUVw3XxQSTXpfnNz2Eeg-TF30Vt0KTjgniFOIMXF_GkOEZAADJhBKyP/exec';
 
 const OSRM_SERVICE_URL = 'https://router.project-osrm.org/route/v1';
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';

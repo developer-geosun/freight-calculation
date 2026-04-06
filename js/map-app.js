@@ -38,6 +38,23 @@ function updateSubmitButtonState() {
     btn.disabled = !hasRoute;
 }
 
+/** Оновлює кнопку відправки на сторінці заявки (спінер + текст + disabled) */
+function updateRequestSubmitButtonState() {
+    const btn = document.getElementById('btn-request-submit');
+    const text = document.getElementById('txt-request-submit-btn');
+    const spinner = document.getElementById('request-submit-spinner');
+    const blocker = document.getElementById('request-page-blocker');
+    const requestPage = document.getElementById('requestPage');
+    if (!btn) return;
+    const t = translations[currentLang] || {};
+    btn.disabled = isSubmitting;
+    if (spinner) spinner.classList.toggle('hidden', !isSubmitting);
+    if (blocker) blocker.classList.toggle('hidden', !isSubmitting);
+    if (requestPage) requestPage.classList.toggle('overflow-y-auto', !isSubmitting);
+    if (requestPage) requestPage.classList.toggle('overflow-hidden', isSubmitting);
+    if (text) text.innerText = isSubmitting ? (t.requestSubmitting || 'Sending...') : (t.requestSubmitBtn || 'Send request');
+}
+
 /** Оновлення підпису © на тайлах залежно від мови */
 function syncMapAttribution() {
     if (!map || !baseTileLayer) return;
@@ -74,6 +91,7 @@ window.onload = () => {
         setTimeout(() => searchInput.focus(), 0);
     }
     updateSubmitButtonState();
+    updateRequestSubmitButtonState();
     const mobileHandle = document.querySelector('.mobile-handle');
     if (mobileHandle) {
         mobileHandle.addEventListener('touchend', (e) => {
@@ -505,14 +523,35 @@ async function sendToGoogleSheets() {
     }
     isSubmitting = true;
     updateSubmitButtonState();
+    updateRequestSubmitButtonState();
+    const lastIdx = waypointMarkers.length - 1;
+    const points = waypointMarkers.map((m, i) => {
+        const pointType = i === 0 ? 'start' : (i === lastIdx ? 'finish' : (m.isBorder ? 'border' : 'stop'));
+        return {
+            order: i + 1,
+            type: pointType,
+            address: m.address || '',
+            lat: Number(m.marker.getLatLng().lat.toFixed(6)),
+            lng: Number(m.marker.getLatLng().lng.toFixed(6)),
+            country: m.country || '',
+            isBorder: Boolean(m.isBorder),
+            segmentDistanceKmToNext: i < lastIdx && segmentDistances[i] ? Number((segmentDistances[i] / 1000).toFixed(3)) : null
+        };
+    });
+    const distanceKm = Number((currentTotalDist / 1000).toFixed(3));
     const data = {
-        timestamp: new Date().toLocaleString(),
+        clientRequestId: (Date.now().toString(36) + Math.random().toString(36).slice(2, 10)).toUpperCase(),
+        timestamp: new Date().toISOString(),
+        source: 'freight-calculation-web',
+        userAgent: navigator.userAgent || '',
+        lang: currentLang,
         email: contact,
         phone: phone,
-        preferredStartDate: preferredStartDate || '-',
-        routeComment: routeComment || '-',
-        distance: (currentTotalDist/1000).toFixed(1) + " km",
-        route: waypointMarkers.map((m, i) => `${i+1}. ${m.address}`).join(' -> ')
+        preferredStartDate: preferredStartDate || '',
+        routeComment: routeComment || '',
+        distanceKm: distanceKm,
+        points: points,
+        route: points.map(p => `${p.order}. ${p.address}`).join(' -> ')
     };
     if (!WEB_APP_URL) {
         console.log(data);
@@ -525,6 +564,7 @@ async function sendToGoogleSheets() {
             closeRequestPage();
             isSubmitting = false;
             updateSubmitButtonState();
+            updateRequestSubmitButtonState();
         }, 1000);
         return;
     }
@@ -538,7 +578,7 @@ async function sendToGoogleSheets() {
         closeRequestPage();
     }
     catch (err) { showToast("Error"); }
-    finally { isSubmitting = false; updateSubmitButtonState(); }
+    finally { isSubmitting = false; updateSubmitButtonState(); updateRequestSubmitButtonState(); }
 }
 
 function showToast(m) {
