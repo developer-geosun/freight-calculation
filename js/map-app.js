@@ -69,6 +69,10 @@ window.onload = () => {
     if (requestPhoneInput) {
         requestPhoneInput.addEventListener('input', () => requestPhoneInput.classList.remove('input-error'));
     }
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        setTimeout(() => searchInput.focus(), 0);
+    }
     updateSubmitButtonState();
     const mobileHandle = document.querySelector('.mobile-handle');
     if (mobileHandle) {
