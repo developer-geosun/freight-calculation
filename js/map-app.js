@@ -18,7 +18,7 @@ function isValidContact(contact) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c) || /^\+?[\d\s\-()]{7,20}$/.test(c);
 }
 
-/** Увімкнути кнопку лише за валідного контакту (і не під час відправки) */
+/** Увімкнути кнопку надсилання, коли є щонайменше 2 точки маршруту */
 function updateSubmitButtonState() {
     const input = document.getElementById('contactInput');
     const btn = document.getElementById('btn-submit');
@@ -27,7 +27,9 @@ function updateSubmitButtonState() {
         btn.disabled = true;
         return;
     }
-    btn.disabled = !isValidContact(input ? input.value : '');
+    const hasRoute = waypointMarkers.length >= 2;
+    const isContactValid = !input || isValidContact(input.value);
+    btn.disabled = !(hasRoute && isContactValid);
 }
 
 /** Оновлення підпису © на тайлах залежно від мови */
@@ -59,10 +61,26 @@ window.onload = () => {
         contactInput.addEventListener('paste', () => setTimeout(updateSubmitButtonState, 0));
     }
     updateSubmitButtonState();
+    const mobileHandle = document.querySelector('.mobile-handle');
+    if (mobileHandle) {
+        mobileHandle.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            toggleSidebar();
+        }, { passive: false });
+    }
     window.addEventListener('resize', () => { setTimeout(() => map.invalidateSize(), 300); });
 };
 
-function toggleSidebar() { if (window.innerWidth < 768) document.getElementById('sidebar').classList.toggle('expanded'); }
+function isCollapsibleViewport() {
+    return window.innerWidth < 1200;
+}
+
+function getSidebarOffset() {
+    if (window.innerWidth >= 1200) return 420;
+    return 0;
+}
+
+function toggleSidebar() { if (isCollapsibleViewport()) document.getElementById('sidebar').classList.toggle('expanded'); }
 
 function setupSearch(inputId, resultsId) {
     const input = document.getElementById(inputId);
@@ -160,7 +178,7 @@ async function addWaypoint(latlng, knownAddress = null, country = null, atIndex 
     refreshMarkerIcons();
     updateUI();
     calculateRoute();
-    if (waypointMarkers.length === 1 && window.innerWidth < 768) document.getElementById('sidebar').classList.add('expanded');
+    if (waypointMarkers.length === 1 && isCollapsibleViewport()) document.getElementById('sidebar').classList.add('expanded');
 }
 
 async function getAddressFull(latlng) {
@@ -201,6 +219,7 @@ function refreshMarkerIcons() {
 function clearAllPoints() {
     waypointMarkers.forEach(obj => { if(obj.marker) map.removeLayer(obj.marker); });
     waypointMarkers = []; segmentDistances = [];
+    currentTotalDist = 0;
     if (routingControl) { try { map.removeControl(routingControl); } catch(e){} routingControl = null; }
     updateUI();
 }
@@ -210,6 +229,16 @@ function updateUI() {
     if(!container) return;
     container.innerHTML = '';
     const t = translations[currentLang];
+    const headerTotalDistance = document.getElementById('headerTotalDistance');
+    if (headerTotalDistance) {
+        if (waypointMarkers.length < 2) {
+            headerTotalDistance.innerText = `0 ${t.km}`;
+            headerTotalDistance.classList.add('opacity-50');
+        } else {
+            headerTotalDistance.innerText = `${(currentTotalDist / 1000).toFixed(1)} ${t.km}`;
+            headerTotalDistance.classList.remove('opacity-50');
+        }
+    }
     if (waypointMarkers.length === 0) {
         document.getElementById('emptyState').classList.remove('hidden');
         document.getElementById('routeInfo').classList.add('hidden');
@@ -351,11 +380,13 @@ function calculateRoute() {
             }
             currentTotalDist = segmentDistances.reduce((a, b) => a + b, 0);
             if(document.getElementById('totalDistance')) document.getElementById('totalDistance').innerText = (currentTotalDist / 1000).toFixed(1) + ` ${translations[currentLang].km}`;
+            if(document.getElementById('headerTotalDistance')) document.getElementById('headerTotalDistance').innerText = (currentTotalDist / 1000).toFixed(1) + ` ${translations[currentLang].km}`;
             if(document.getElementById('routePointsCount')) document.getElementById('routePointsCount').innerText = `${waypointMarkers.length} ${translations[currentLang].pts}`;
             if(infoEl) infoEl.classList.remove('hidden');
             updateUI();
-            const padding = window.innerWidth < 768 ? [20, 20] : [50, 50];
-            const offset = window.innerWidth < 768 ? [0, 0] : [380, 0];
+            const isCollapsible = isCollapsibleViewport();
+            const padding = isCollapsible ? [20, 20] : [50, 50];
+            const offset = isCollapsible ? [0, 0] : [getSidebarOffset(), 0];
             map.fitBounds(L.latLngBounds(r.coordinates), { padding: padding, paddingTopLeft: offset, animate: true });
         });
     } else { routingControl.setWaypoints(wpts); }
@@ -365,11 +396,13 @@ async function sendToGoogleSheets() {
     const input = document.getElementById('contactInput');
     const contact = input ? input.value.trim() : '';
     const t = translations[currentLang];
-    input.classList.remove('input-error');
-    if (!isValidContact(contact)) { input.classList.add('input-error'); showToast(t.invalidFormat); return; }
+    if (input) {
+        input.classList.remove('input-error');
+        if (!isValidContact(contact)) { input.classList.add('input-error'); showToast(t.invalidFormat); return; }
+    }
     isSubmitting = true;
     updateSubmitButtonState();
-    const data = { timestamp: new Date().toLocaleString(), contact, distance: (currentTotalDist/1000).toFixed(1) + " km", route: waypointMarkers.map((m, i) => `${i+1}. ${m.address}`).join(' -> ') };
+    const data = { timestamp: new Date().toLocaleString(), contact: contact || '-', distance: (currentTotalDist/1000).toFixed(1) + " km", route: waypointMarkers.map((m, i) => `${i+1}. ${m.address}`).join(' -> ') };
     if (!WEB_APP_URL) {
         console.log(data);
         setTimeout(() => {
@@ -379,7 +412,7 @@ async function sendToGoogleSheets() {
         }, 1000);
         return;
     }
-    try { await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) }); showToast(t.success); input.value = ''; }
+    try { await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) }); showToast(t.success); if (input) input.value = ''; }
     catch (err) { showToast("Error"); }
     finally { isSubmitting = false; updateSubmitButtonState(); }
 }

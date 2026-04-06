@@ -18,10 +18,8 @@ function updateUILanguage() {
 
 function setLanguage(lang) {
     currentLang = lang;
-    ['uk', 'ru', 'en'].forEach(l => {
-        const btn = document.getElementById(`lang-${l}`);
-        if(btn) btn.className = `px-2 py-1 rounded transition-all ${l === lang ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400'}`;
-    });
+    const select = document.getElementById('lang-select');
+    if (select) select.value = lang;
     updateUILanguage();
     updateUI();
     if (typeof routingControl !== 'undefined' && routingControl) calculateRoute(); // routingControl оголошено в map-app.js
