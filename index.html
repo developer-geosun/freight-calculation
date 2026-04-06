@@ -36,7 +36,7 @@
                     <p class="text-[11px] text-slate-700 font-extrabold uppercase tracking-wider" id="txt-subtitle">Планування фрахту</p>
                     <span class="text-[11px] text-blue-700 font-extrabold whitespace-nowrap" id="headerTotalDistance">0 км</span>
                 </div>
-                <button type="button" onclick="sendToGoogleSheets()" id="btn-submit" disabled class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600 text-white px-3 py-2 rounded-lg font-bold text-[11px] shadow-md transition-all flex items-center justify-center gap-1.5 group whitespace-nowrap">
+                <button type="button" onclick="openRequestPage()" id="btn-submit" disabled class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600 text-white px-3 py-2 rounded-lg font-bold text-[11px] shadow-md transition-all flex items-center justify-center gap-1.5 group whitespace-nowrap">
                     <span id="txt-submit-btn">Надіслати запит</span>
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="group-hover:translate-x-1 transition-transform"><path d="m9 18 6-6-6-6"/></svg>
                 </button>
@@ -64,6 +64,42 @@
     </div>
 
     <div id="map"></div>
+
+    <div id="requestPage" class="fixed inset-0 z-[4500] hidden bg-slate-100 overflow-y-auto">
+        <div class="max-w-3xl mx-auto p-4 sm:p-6 lg:p-8">
+            <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-100">
+                    <h2 id="request-title" class="text-lg font-bold text-slate-800">Маршрут</h2>
+                    <p id="request-route-distance" class="text-sm text-blue-700 font-semibold mt-1">0 км</p>
+                </div>
+                <div class="px-5 py-4 border-b border-slate-100">
+                    <div id="request-route-points" class="space-y-2 text-sm text-slate-700"></div>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div>
+                        <label for="request-email" id="request-email-label" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">E-mail для обратной связи *</label>
+                        <input id="request-email" type="email" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
+                    </div>
+                    <div>
+                        <label for="request-phone" id="request-phone-label" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Телефон для обратной связи *</label>
+                        <input id="request-phone" type="tel" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
+                    </div>
+                    <div>
+                        <label for="request-start-date" id="request-date-label" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Желаемая дата начала выполнения маршрута</label>
+                        <input id="request-start-date" type="date" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
+                    </div>
+                    <div>
+                        <label for="request-comment" id="request-comment-label" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Комментарии к маршруту</label>
+                        <textarea id="request-comment" rows="4" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-y"></textarea>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-2 pt-2">
+                        <button type="button" onclick="closeRequestPage()" id="btn-back-to-map" class="w-full sm:w-auto bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-bold text-xs transition-colors">Вернуться к карте</button>
+                        <button type="button" onclick="sendToGoogleSheets()" id="btn-request-submit" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-4 py-2 rounded-lg font-bold text-xs transition-colors">Отправить запрос</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl text-xs z-[5000] transition-all duration-300 opacity-0 pointer-events-none font-medium flex items-center gap-3 border border-slate-700">
         <div class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>

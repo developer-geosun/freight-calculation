@@ -18,9 +18,16 @@ function isValidContact(contact) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c) || /^\+?[\d\s\-()]{7,20}$/.test(c);
 }
 
+/** Перевірка формату телефонного номера */
+function isValidPhone(phone) {
+    const p = (phone || '').trim();
+    if (!p) return false;
+    if (!/^\+?[\d\s\-()]{7,20}$/.test(p)) return false;
+    return p.replace(/\D/g, '').length >= 7;
+}
+
 /** Увімкнути кнопку надсилання, коли є щонайменше 2 точки маршруту */
 function updateSubmitButtonState() {
-    const input = document.getElementById('contactInput');
     const btn = document.getElementById('btn-submit');
     if (!btn) return;
     if (isSubmitting) {
@@ -28,8 +35,7 @@ function updateSubmitButtonState() {
         return;
     }
     const hasRoute = waypointMarkers.length >= 2;
-    const isContactValid = !input || isValidContact(input.value);
-    btn.disabled = !(hasRoute && isContactValid);
+    btn.disabled = !hasRoute;
 }
 
 /** Оновлення підпису © на тайлах залежно від мови */
@@ -55,10 +61,13 @@ window.onload = () => {
     map.on('click', (e) => addWaypoint(e.latlng));
     setupSearch('searchInput', 'searchResults');
     setLanguage('uk');
-    const contactInput = document.getElementById('contactInput');
-    if (contactInput) {
-        contactInput.addEventListener('input', updateSubmitButtonState);
-        contactInput.addEventListener('paste', () => setTimeout(updateSubmitButtonState, 0));
+    const requestEmailInput = document.getElementById('request-email');
+    if (requestEmailInput) {
+        requestEmailInput.addEventListener('input', () => requestEmailInput.classList.remove('input-error'));
+    }
+    const requestPhoneInput = document.getElementById('request-phone');
+    if (requestPhoneInput) {
+        requestPhoneInput.addEventListener('input', () => requestPhoneInput.classList.remove('input-error'));
     }
     updateSubmitButtonState();
     const mobileHandle = document.querySelector('.mobile-handle');
@@ -222,6 +231,7 @@ function clearAllPoints() {
     currentTotalDist = 0;
     if (routingControl) { try { map.removeControl(routingControl); } catch(e){} routingControl = null; }
     updateUI();
+    closeRequestPage();
 }
 
 function updateUI() {
@@ -392,27 +402,137 @@ function calculateRoute() {
     } else { routingControl.setWaypoints(wpts); }
 }
 
+function hasPendingBorderCheckpoint() {
+    for (let i = 0; i < waypointMarkers.length - 1; i++) {
+        const current = waypointMarkers[i];
+        const next = waypointMarkers[i + 1];
+        const c1 = current.country;
+        const c2 = next.country;
+        if (!c1 || !c2) continue;
+        if (c1 === c2) continue;
+        if (current.isBorder || next.isBorder) continue;
+        if (c1 === 'ua' || c2 === 'ua') return true;
+    }
+    return false;
+}
+
+function renderRequestRouteSummary() {
+    const pointsContainer = document.getElementById('request-route-points');
+    const distanceEl = document.getElementById('request-route-distance');
+    const t = translations[currentLang];
+    const lastIdx = waypointMarkers.length - 1;
+    if (distanceEl) {
+        distanceEl.innerText = `${(currentTotalDist / 1000).toFixed(1)} ${t.km}`;
+    }
+    if (!pointsContainer) return;
+    pointsContainer.innerHTML = '';
+    waypointMarkers.forEach((obj, i) => {
+        const label = i === 0 ? t.start : (i === lastIdx ? t.finish : (obj.isBorder ? t.border : t.stop));
+        const pointCard = document.createElement('div');
+        pointCard.className = `flex items-center gap-3 p-3 rounded-xl shadow-sm border ${obj.isBorder ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-slate-100'}`;
+        pointCard.innerHTML = `
+            <div class="flex-none w-6 h-6 ${obj.isBorder ? 'bg-green-600' : 'bg-blue-600'} text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">${i + 1}</div>
+            <div class="flex-1 min-w-0">
+                <p class="text-[8px] uppercase font-bold tracking-wider ${obj.isBorder ? 'text-green-600' : 'text-slate-400'}">${label}</p>
+                <p class="text-[12px] text-slate-700 font-semibold break-words leading-tight">${obj.address || ''}</p>
+                <p class="text-[9px] font-mono mt-0.5 ${obj.isBorder ? 'text-green-600' : 'text-blue-600'}">${obj.marker.getLatLng().lat.toFixed(5)}, ${obj.marker.getLatLng().lng.toFixed(5)}</p>
+            </div>
+        `;
+        pointsContainer.appendChild(pointCard);
+
+        if (i < lastIdx) {
+            const dist = segmentDistances[i];
+            const connector = document.createElement('div');
+            connector.className = 'flex justify-center py-1';
+            connector.innerHTML = dist
+                ? `<div class="inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-[10px] font-bold text-slate-600">${(dist / 1000).toFixed(1)} ${t.km}</div>`
+                : '';
+            pointsContainer.appendChild(connector);
+        }
+    });
+}
+
+function openRequestPage() {
+    if (waypointMarkers.length < 2) {
+        showToast(translations[currentLang].routeRequired || 'Add at least two points');
+        return;
+    }
+    if (hasPendingBorderCheckpoint()) {
+        showToast(translations[currentLang].selectBorderRequired || 'Select border checkpoint');
+        return;
+    }
+    renderRequestRouteSummary();
+    const requestPage = document.getElementById('requestPage');
+    if (!requestPage) return;
+    requestPage.classList.remove('hidden');
+}
+
+function closeRequestPage() {
+    const requestPage = document.getElementById('requestPage');
+    if (!requestPage) return;
+    requestPage.classList.add('hidden');
+}
+
 async function sendToGoogleSheets() {
-    const input = document.getElementById('contactInput');
+    const input = document.getElementById('request-email');
+    const phoneInput = document.getElementById('request-phone');
     const contact = input ? input.value.trim() : '';
+    const phone = phoneInput ? phoneInput.value.trim() : '';
+    const startDateInput = document.getElementById('request-start-date');
+    const commentInput = document.getElementById('request-comment');
+    const preferredStartDate = startDateInput ? startDateInput.value : '';
+    const routeComment = commentInput ? commentInput.value.trim() : '';
     const t = translations[currentLang];
     if (input) {
         input.classList.remove('input-error');
-        if (!isValidContact(contact)) { input.classList.add('input-error'); showToast(t.invalidFormat); return; }
+        if (!contact || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)) {
+            input.classList.add('input-error');
+            showToast(t.emailRequired || 'Email is required');
+            return;
+        }
+    }
+    if (phoneInput) {
+        phoneInput.classList.remove('input-error');
+        if (!isValidPhone(phone)) {
+            phoneInput.classList.add('input-error');
+            showToast(t.phoneRequired || 'Phone is required');
+            return;
+        }
     }
     isSubmitting = true;
     updateSubmitButtonState();
-    const data = { timestamp: new Date().toLocaleString(), contact: contact || '-', distance: (currentTotalDist/1000).toFixed(1) + " km", route: waypointMarkers.map((m, i) => `${i+1}. ${m.address}`).join(' -> ') };
+    const data = {
+        timestamp: new Date().toLocaleString(),
+        email: contact,
+        phone: phone,
+        preferredStartDate: preferredStartDate || '-',
+        routeComment: routeComment || '-',
+        distance: (currentTotalDist/1000).toFixed(1) + " km",
+        route: waypointMarkers.map((m, i) => `${i+1}. ${m.address}`).join(' -> ')
+    };
     if (!WEB_APP_URL) {
         console.log(data);
         setTimeout(() => {
             showToast(t.success);
+            if (input) input.value = '';
+            if (phoneInput) phoneInput.value = '';
+            if (startDateInput) startDateInput.value = '';
+            if (commentInput) commentInput.value = '';
+            closeRequestPage();
             isSubmitting = false;
             updateSubmitButtonState();
         }, 1000);
         return;
     }
-    try { await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) }); showToast(t.success); if (input) input.value = ''; }
+    try {
+        await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) });
+        showToast(t.success);
+        if (input) input.value = '';
+        if (phoneInput) phoneInput.value = '';
+        if (startDateInput) startDateInput.value = '';
+        if (commentInput) commentInput.value = '';
+        closeRequestPage();
+    }
     catch (err) { showToast("Error"); }
     finally { isSubmitting = false; updateSubmitButtonState(); }
 }
